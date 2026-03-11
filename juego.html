@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruleta de Vidas - Opción Múltiple</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+        .game-container {
+            background: rgba(255,255,255,0.95);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            padding: 30px;
+            max-width: 800px;
+            width: 100%;
+        }
+        h1, h2 {
+            text-align: center;
+            color: #1e3c72;
+            margin-top: 0;
+        }
+        .config-section, .game-section {
+            transition: all 0.3s;
+        }
+        .config-section {
+            background: #f0f4f8;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #2a5298;
+        }
+        input, button {
+            padding: 10px;
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            font-size: 16px;
+            width: 100%;
+        }
+        button {
+            background: #2a5298;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            transition: background 0.2s;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #1e3c72;
+        }
+        button:disabled {
+            background: #aaa;
+            cursor: not-allowed;
+        }
+        .teams-status {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        .team-card {
+            background: #fff;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            text-align: center;
+            min-width: 120px;
+            border: 2px solid #2a5298;
+            transition: all 0.3s;
+        }
+        .team-name {
+            font-weight: bold;
+            font-size: 1.2em;
+            color: #1e3c72;
+        }
+        .team-lives {
+            font-size: 1.5em;
+            color: #e74c3c;
+        }
+        .eliminated {
+            opacity: 0.5;
+            background: #ddd !important;
+            border-color: #999 !important;
+        }
+        @keyframes blink {
+            0% { opacity: 1; filter: brightness(1); }
+            50% { opacity: 0.6; filter: brightness(1.2); }
+            100% { opacity: 1; filter: brightness(1); }
+        }
+        .blink {
+            animation: blink 0.8s ease-in-out 3;
+        }
+        .turn-indicator {
+            background: #f39c12;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 1.3em;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .selector-area {
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+        .pregunta-area {
+            background: #d4e6f1;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .option-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 12px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background 0.2s;
+            width: 100%;
+            text-align: left;
+        }
+        .option-btn:hover:not(:disabled) {
+            background: #2980b9;
+        }
+        .option-btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+        .option-btn.correct {
+            background: #27ae60;
+        }
+        .option-btn.incorrect {
+            background: #e74c3c;
+        }
+        .message {
+            background: #2ecc71;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: bold;
+            margin: 10px 0;
+            white-space: pre-line;
+        }
+        .message.error {
+            background: #e74c3c;
+        }
+        .hidden {
+            display: none;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            color: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>🎲 Ruleta de Vidas - Opción Múltiple 🎲</h1>
+        
+        <!-- Pantalla de configuración -->
+        <div id="configScreen" class="config-section">
+            <h2>Configuración de equipos</h2>
+            <div class="form-group">
+                <label for="numEquipos">Número de equipos (mínimo 2):</label>
+                <input type="number" id="numEquipos" min="2" value="3">
+            </div>
+            <div id="nombresEquipos"></div>
+            <button id="btnIniciar">Iniciar juego</button>
+        </div>
+
+        <!-- Pantalla de juego -->
+        <div id="gameScreen" class="game-section hidden">
+            <div class="teams-status" id="teamStatus"></div>
+            
+            <div class="turn-indicator" id="turnIndicator">
+                Gira la ruleta...
+            </div>
+
+            <button id="btnGirar">🎯 Girar ruleta</button>
+
+            <div id="chooseArea" class="selector-area hidden">
+                <h3>Elige un equipo para responder:</h3>
+                <div id="chooseButtons"></div>
+            </div>
+
+            <div id="questionArea" class="pregunta-area hidden">
+                <h3 id="preguntaTexto"></h3>
+                <div id="optionsContainer" class="options-container"></div>
+            </div>
+
+            <div id="messageBox" class="hidden"></div>
+
+            <button id="btnReiniciar">🔄 Reiniciar juego</button>
+        </div>
+        <div class="footer">Creado para divertirse en equipo</div>
+    </div>
+
+    <script>
+        // ---------- BANCO DE PREGUNTAS ----------
+        const preguntas = [
+            {
+                pregunta: "¿Cuál es el nivel más bajo de medición que simplemente clasifica elementos en categorías sin un orden jerárquico?",
+                opciones: ["Escala ordinal", "Escala nominal", "Escala de intervalo", "Escala de razón"],
+                respuesta: "Escala nominal"
+            },
+            {
+                pregunta: "En una escala nominal, ¿qué requisito asegura que un sujeto de estudio pertenezca a una y solo una categoría?",
+                opciones: ["Exhaustividad conjunta", "Validez de constructo", "Exclusión mutua", "Fiabilidad"],
+                respuesta: "Exclusión mutua"
+            },
+            {
+                pregunta: "¿Qué escala de medición se utiliza comúnmente en las encuestas de satisfacción tipo Likert?",
+                opciones: ["Escala de razón", "Escala ordinal", "Escala nominal", "Escala de intervalo"],
+                respuesta: "Escala ordinal"
+            },
+            {
+                pregunta: "¿Cuál es la característica principal que distingue a la escala de intervalo de la escala de razón?",
+                opciones: ["No permite realizar sumas", "Solo permite comparaciones de orden", "Permite el uso de categorías", "El punto cero es arbitrario"],
+                respuesta: "El punto cero es arbitrario"
+            },
+            {
+                pregunta: "¿Qué nivel de medición es el único que permite aplicar todas las operaciones matemáticas, incluyendo la multiplicación y división?",
+                opciones: ["Escala nominal", "Escala de intervalo", "Escala de razón", "Escala de frecuencia"],
+                respuesta: "Escala de razón"
+            },
+            {
+                pregunta: "Si se desea comparar la cantidad de evaluadores (testers) frente a la de desarrolladores, ¿qué medida estadística se está utilizando?",
+                opciones: ["Razón (o Relación)", "Tasa", "Proporción", "Porcentaje"],
+                respuesta: "Razón (o Relación)"
+            },
+            {
+                pregunta: "¿Cómo se define una proporción en términos de la relación entre su numerador y su denominador?",
+                opciones: ["El denominador representa el tiempo", "El numerador es parte del denominador", "El numerador y denominador son excluyentes", "El denominador siempre es cien"],
+                respuesta: "El numerador es parte del denominador"
+            },
+            {
+                pregunta: "Para que un reporte de porcentajes sea estadísticamente contextualizado y fiable, ¿cuál es el tamaño de muestra mínimo recomendado?",
+                opciones: ["100 casos", "30 casos", "10 casos", "5 casos"],
+                respuesta: "30 casos"
+            },
+            {
+                pregunta: "¿Qué concepto es fundamental en el denominador de una tasa para asegurar que el cálculo sea válido?",
+                opciones: ["Exposición al riesgo", "Ordenamiento de rango", "Exclusión mutua", "Punto cero absoluto"],
+                respuesta: "Exposición al riesgo"
+            },
+            {
+                pregunta: "En el contexto de Seis Sigma, ¿qué tasa de error representa un proceso con un desplazamiento de 1.5 sigma?",
+                opciones: ["3.4 piezas por millón", "2.7 piezas por millón", "99.99966% de piezas correctas", "3.4 piezas por mil"],
+                respuesta: "3.4 piezas por millón"
+            },
+            {
+                pregunta: "¿Cómo se denomina a la consistencia de las mediciones cuando se aplica el mismo método repetidamente al mismo sujeto?",
+                opciones: ["Causalidad", "Correlación", "Validez", "Fiabilidad (Confiabilidad)"],
+                respuesta: "Fiabilidad (Confiabilidad)"
+            },
+            {
+                pregunta: "¿Qué medida estadística se utiliza para expresar la fiabilidad mediante el cociente entre la desviación típica y la media?",
+                opciones: ["Coeficiente de Pearson", "Sigma", "Varianza", "Índice de Variación (IV)"],
+                respuesta: "Índice de Variación (IV)"
+            },
+            {
+                pregunta: "¿Qué sucede con la validez de una medición si existe la presencia de un Error Sistemático?",
+                opciones: ["La medición mejora su fiabilidad", "La medición se vuelve inválida", "El error se cancela a largo plazo", "La correlación lineal aumenta"],
+                respuesta: "La medición se vuelve inválida"
+            },
+            {
+                pregunta: "¿Cómo se llama el fenómeno donde el ruido o los errores aleatorios disminuyen la fuerza de la correlación observada?",
+                opciones: ["Corrección por atenuación", "Atenuación", "Relación espuria", "Varianza observada"],
+                respuesta: "Atenuación"
+            },
+            {
+                pregunta: "¿Qué debilidad principal presenta el método de mínimos cuadrados utilizado en la correlación lineal?",
+                opciones: ["Requiere datos nominales", "Solo funciona con muestras pequeñas", "Vulnerabilidad a valores atípicos", "No asume relaciones de línea recta"],
+                respuesta: "Vulnerabilidad a valores atípicos"
+            },
+            {
+                pregunta: "¿Qué tipo de validez se evalúa comparando las puntuaciones de una métrica con el desempeño real observado posteriormente?",
+                opciones: ["Validez nominal", "Validez de constructo", "Validez relacionada con el criterio", "Validez de contenido"],
+                respuesta: "Validez relacionada con el criterio"
+            },
+            {
+                pregunta: "¿Cuál es la principal ventaja del coeficiente de correlación de Spearman sobre el de Pearson?",
+                opciones: ["Requiere datos en escala de intervalo", "Es más sensible al ruido de los datos", "Calcula la causa y el efecto directamente", "Es más robusto ante valores extremos"],
+                respuesta: "Es más robusto ante valores extremos"
+            },
+            {
+                pregunta: "En el análisis de relaciones, ¿cuándo se dice que una correlación es espuria?",
+                opciones: ["Cuando los datos son de escala nominal", "Cuando el coeficiente de correlación es igual a cero", "Cuando no hay una verdadera relación de causa-efecto", "Cuando se utiliza un diagrama de dispersión"],
+                respuesta: "Cuando no hay una verdadera relación de causa-efecto"
+            },
+            {
+                pregunta: "¿Cuál de los siguientes es un criterio necesario para establecer causalidad estadística?",
+                opciones: ["No debe haber ninguna variable interviniente", "El coeficiente de correlación debe ser exactamente 1", "Los datos deben ser exclusivamente cualitativos", "La causa debe preceder al efecto"],
+                respuesta: "La causa debe preceder al efecto"
+            },
+            {
+                pregunta: "¿Qué herramienta permite identificar visualmente si una relación entre variables es no lineal (ej. curva)?",
+                opciones: ["Cálculo de la varianza", "Frecuencia relativa", "Límites de especificación", "Diagrama de dispersión"],
+                respuesta: "Diagrama de dispersión"
+            },
+            {
+                pregunta: "¿Qué representa el símbolo griego σ (sigma) en el campo de la estadística y calidad?",
+                opciones: ["La tasa de natalidad bruta", "El número de defectos", "La desviación estándar", "El promedio aritmético"],
+                respuesta: "La desviación estándar"
+            },
+            {
+                pregunta: "¿Qué tipo de tasa utiliza a toda una población como denominador, incluso si no todos están expuestos al riesgo?",
+                opciones: ["Tasa de fiabilidad", "Tasa de defectos", "Tasa de error específica", "Tasa bruta"],
+                respuesta: "Tasa bruta"
+            },
+            {
+                pregunta: "En la gestión de calidad, ¿qué define si un producto se considera 'defectuoso'?",
+                opciones: ["Quedar fuera de los límites de especificación", "Tener una correlación lineal débil", "Ser parte de una distribución normal", "Presentar cualquier error aleatorio"],
+                respuesta: "Quedar fuera de los límites de especificación"
+            },
+            {
+                pregunta: "¿Qué método de evaluación de fiabilidad consiste en aplicar la misma prueba dos veces a los mismos sujetos después de un tiempo?",
+                opciones: ["Consistencia interna", "Método test/retest", "Validez predictiva", "División por mitades"],
+                respuesta: "Método test/retest"
+            },
+            {
+                pregunta: "Si una correlación observada es débil, ¿significa necesariamente que no existe relación entre las variables?",
+                opciones: ["No, significa que hay demasiados evaluadores", "Sí, el coeficiente de correlación es la medida definitiva", "No, podría haber una relación no lineal", "Sí, siempre que los datos estén en escala de razón"],
+                respuesta: "No, podría haber una relación no lineal"
+            },
+            {
+                pregunta: "¿Qué ocurre con los errores aleatorios en el promedio a largo plazo?",
+                opciones: ["Aumentan la atenuación de la correlación", "Se espera que se cancelen entre sí", "Invalidan permanentemente la medición", "Se transforman en errores sistemáticos"],
+                respuesta: "Se espera que se cancelen entre sí"
+            },
+            {
+                pregunta: "¿Cómo se define operativamente la 'exposición al riesgo' en la literatura de calidad para calcular tasas de defectos?",
+                opciones: ["Oportunidades de error (OFE)", "Varianza observada", "Nivel de madurez del proyecto", "Líneas de código fuente (KLOC)"],
+                respuesta: "Oportunidades de error (OFE)"
+            },
+            {
+                pregunta: "En una escala ordinal, ¿qué información NO podemos obtener sobre los elementos comparados?",
+                opciones: ["Cuál elemento es superior a otro", "El orden de madurez de un proyecto", "La magnitud exacta de las diferencias", "La clasificación en categorías"],
+                respuesta: "La magnitud exacta de las diferencias"
+            },
+            {
+                pregunta: "¿Qué es una variable interviniente en un análisis de causalidad?",
+                opciones: ["Una variable que media entre la causa inicial y el efecto", "Una variable que hace que la escala sea de razón", "Una variable que elimina el error aleatorio", "Un valor atípico que sesga la correlación de Pearson"],
+                respuesta: "Una variable que media entre la causa inicial y el efecto"
+            },
+            {
+                pregunta: "¿Cuál es la característica principal de una distribución normal en relación a sus desviaciones estándar?",
+                opciones: ["Su punto cero siempre representa la ausencia de atributo", "Tiene áreas bajo la curva definidas por proporciones constantes", "Solo contiene datos de escala nominal", "Es sensible únicamente a los errores sistemáticos"],
+                respuesta: "Tiene áreas bajo la curva definidas por proporciones constantes"
+            }
+        ];
+
+        // ---------- PALETA DE COLORES PARA LOS EQUIPOS ----------
+        const coloresEquipos = [
+            '#FFB6C1', '#ADD8E6', '#98FB98', '#FFD700', '#DDA0DD',
+            '#F0E68C', '#FFA07A', '#B0E0E6', '#C0C0C0', '#FFC0CB'
+        ];
+
+        // ---------- VARIABLES GLOBALES ----------
+        let equipos = [];
+        let retador = null;
+        let cuestionado = null;
+        let preguntaActual = null;
+
+        // Elementos del DOM
+        const configScreen = document.getElementById('configScreen');
+        const gameScreen = document.getElementById('gameScreen');
+        const numEquiposInput = document.getElementById('numEquipos');
+        const nombresEquiposDiv = document.getElementById('nombresEquipos');
+        const btnIniciar = document.getElementById('btnIniciar');
+        const btnReiniciar = document.getElementById('btnReiniciar');
+        const btnGirar = document.getElementById('btnGirar');
+        const turnIndicator = document.getElementById('turnIndicator');
+        const chooseArea = document.getElementById('chooseArea');
+        const chooseButtons = document.getElementById('chooseButtons');
+        const questionArea = document.getElementById('questionArea');
+        const preguntaTexto = document.getElementById('preguntaTexto');
+        const optionsContainer = document.getElementById('optionsContainer');
+        const messageBox = document.getElementById('messageBox');
+        const teamStatus = document.getElementById('teamStatus');
+
+        // ---------- FUNCIONES AUXILIARES ----------
+        function generarCamposNombres() {
+            const num = parseInt(numEquiposInput.value);
+            let html = '';
+            for (let i = 1; i <= num; i++) {
+                html += `
+                    <div class="form-group">
+                        <label for="eq${i}">Nombre del equipo ${i}:</label>
+                        <input type="text" id="eq${i}" value="Equipo ${i}">
+                    </div>
+                `;
+            }
+            nombresEquiposDiv.innerHTML = html;
+        }
+
+        numEquiposInput.addEventListener('input', generarCamposNombres);
+        generarCamposNombres();
+
+        // ---------- INICIAR JUEGO ----------
+        btnIniciar.addEventListener('click', () => {
+            const num = parseInt(numEquiposInput.value);
+            if (num < 2) {
+                alert('Debe haber al menos 2 equipos');
+                return;
+            }
+            equipos = [];
+            for (let i = 1; i <= num; i++) {
+                const nombreInput = document.getElementById(`eq${i}`);
+                let nombre = nombreInput.value.trim();
+                if (nombre === '') nombre = `Equipo ${i}`;
+                // Asignar un color de la paleta (cíclico)
+                const color = coloresEquipos[(i-1) % coloresEquipos.length];
+                equipos.push({ nombre, vidas: 5, color });
+            }
+            configScreen.classList.add('hidden');
+            gameScreen.classList.remove('hidden');
+            actualizarVistas();
+            mostrarMensaje('¡Juego iniciado! Cada equipo tiene 5 vidas.', 'info');
+        });
+
+        // ---------- REINICIAR ----------
+        btnReiniciar.addEventListener('click', () => {
+            configScreen.classList.remove('hidden');
+            gameScreen.classList.add('hidden');
+            resetearTurno();
+            equipos = [];
+            actualizarVistas();
+        });
+
+        // ---------- ACTUALIZAR VISTAS (con colores) ----------
+        function actualizarVistas() {
+            let html = '';
+            equipos.forEach(eq => {
+                const eliminado = eq.vidas <= 0 ? 'eliminated' : '';
+                // Aplicar color de fondo suave y borde con el color del equipo
+                const estiloColor = eq.vidas > 0 ? `style="background-color: ${eq.color}40; border-color: ${eq.color};"` : '';
+                html += `
+                    <div class="team-card ${eliminado}" ${estiloColor}>
+                        <div class="team-name">${eq.nombre}</div>
+                        <div class="team-lives">${'❤️'.repeat(eq.vidas)} ${eq.vidas}</div>
+                    </div>
+                `;
+            });
+            teamStatus.innerHTML = html;
+
+            const vivos = equipos.filter(eq => eq.vidas > 0);
+            if (vivos.length >= 2 && !retador) {
+                btnGirar.disabled = false;
+            } else {
+                btnGirar.disabled = true;
+            }
+        }
+
+        function resetearTurno() {
+            retador = null;
+            cuestionado = null;
+            preguntaActual = null;
+            chooseArea.classList.add('hidden');
+            questionArea.classList.add('hidden');
+            messageBox.classList.add('hidden');
+            turnIndicator.innerText = 'Gira la ruleta...';
+            actualizarVistas();
+        }
+
+        function mostrarMensaje(texto, tipo = 'info') {
+            messageBox.innerText = texto;
+            messageBox.className = 'message';
+            if (tipo === 'error') messageBox.classList.add('error');
+            messageBox.classList.remove('hidden');
+            setTimeout(() => {
+                messageBox.classList.add('hidden');
+            }, 5000);
+        }
+
+        // ---------- GIRAR RULETA ----------
+        btnGirar.addEventListener('click', () => {
+            const vivos = equipos.filter(eq => eq.vidas > 0);
+            if (vivos.length < 2) {
+                mostrarMensaje('No hay suficientes equipos para continuar.', 'error');
+                return;
+            }
+            retador = vivos[Math.floor(Math.random() * vivos.length)];
+            turnIndicator.innerText = `🎯 La ruleta cayó en: ${retador.nombre} (retador)`;
+            mostrarOpcionesCuestionado();
+            btnGirar.disabled = true;
+        });
+
+        function mostrarOpcionesCuestionado() {
+            const otrosVivos = equipos.filter(eq => eq.vidas > 0 && eq.nombre !== retador.nombre);
+            if (otrosVivos.length === 0) {
+                resetearTurno();
+                mostrarMensaje('Error: no hay otros equipos vivos', 'error');
+                return;
+            }
+            let botonesHtml = '';
+            otrosVivos.forEach(eq => {
+                // También podemos dar color a los botones de elección
+                botonesHtml += `<button class="btn-elegir" data-nombre="${eq.nombre}" style="background-color: ${eq.color}; border: none; color: #000; font-weight: bold;">${eq.nombre} (${eq.vidas} vidas)</button>`;
+            });
+            chooseButtons.innerHTML = botonesHtml;
+            chooseArea.classList.remove('hidden');
+            questionArea.classList.add('hidden');
+
+            document.querySelectorAll('.btn-elegir').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const nombre = e.target.dataset.nombre;
+                    cuestionado = equipos.find(eq => eq.nombre === nombre);
+                    elegirCuestionado();
+                });
+            });
+        }
+
+        function elegirCuestionado() {
+            chooseArea.classList.add('hidden');
+            preguntaActual = preguntas[Math.floor(Math.random() * preguntas.length)];
+            preguntaTexto.innerText = preguntaActual.pregunta;
+            optionsContainer.innerHTML = '';
+            const letras = ['A', 'B', 'C', 'D'];
+            preguntaActual.opciones.forEach((opcion, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = `${letras[index]}. ${opcion}`;
+                btn.dataset.opcion = opcion;
+                btn.addEventListener('click', () => manejarRespuesta(opcion, btn));
+                optionsContainer.appendChild(btn);
+            });
+            questionArea.classList.remove('hidden');
+            turnIndicator.innerText = `${retador.nombre} reta a ${cuestionado.nombre} a responder.`;
+        }
+
+        // ---------- MANEJAR RESPUESTA ----------
+        function manejarRespuesta(opcionElegida, botonClickeado) {
+            const botones = document.querySelectorAll('.option-btn');
+            botones.forEach(btn => btn.disabled = true);
+
+            const correcta = preguntaActual.respuesta;
+            const esCorrecta = (opcionElegida === correcta);
+
+            botones.forEach(btn => {
+                const opcion = btn.dataset.opcion;
+                if (opcion === correcta) {
+                    btn.classList.add('correct');
+                } else if (opcion === opcionElegida && !esCorrecta) {
+                    btn.classList.add('incorrect');
+                }
+            });
+
+            // Aplicar pérdida de vida
+            let equipoPerdedor;
+            if (esCorrecta) {
+                retador.vidas -= 1;
+                equipoPerdedor = retador;
+            } else {
+                cuestionado.vidas -= 1;
+                equipoPerdedor = cuestionado;
+            }
+
+            // Buscar la tarjeta del equipo perdedor para hacerla parpadear
+            const tarjetas = document.querySelectorAll('.team-card');
+            let tarjetaPerdedor = null;
+            tarjetas.forEach(tarjeta => {
+                const nombre = tarjeta.querySelector('.team-name').innerText;
+                if (nombre === equipoPerdedor.nombre) {
+                    tarjetaPerdedor = tarjeta;
+                }
+            });
+            if (tarjetaPerdedor) {
+                tarjetaPerdedor.classList.add('blink');
+            }
+
+            // Construir mensaje
+            let mensaje = '';
+            let tipoMensaje = 'info';
+            if (esCorrecta) {
+                mensaje = `✅ ¡Correcto! La respuesta es: ${correcta}\n\n${retador.nombre} pierde una vida.`;
+                tipoMensaje = 'info';
+            } else {
+                mensaje = `❌ Incorrecto. La respuesta correcta es: ${correcta}\n\n${cuestionado.nombre} pierde una vida.`;
+                tipoMensaje = 'error';
+            }
+
+            mostrarMensaje(mensaje, tipoMensaje);
+
+            // Verificar eliminaciones
+            const eliminados = equipos.filter(eq => eq.vidas === 0);
+            if (eliminados.length > 0) {
+                eliminados.forEach(eq => {
+                    mostrarMensaje(`💀 ${eq.nombre} ha sido eliminado.`, 'error');
+                });
+            }
+
+            // Comprobar si el juego terminó
+            const vivos = equipos.filter(eq => eq.vidas > 0);
+            if (vivos.length === 1) {
+                mostrarMensaje(`🏆 ¡${vivos[0].nombre} es el GANADOR! 🏆`, 'info');
+                btnGirar.disabled = true;
+                chooseArea.classList.add('hidden');
+                questionArea.classList.add('hidden');
+                turnIndicator.innerText = `🏆 ${vivos[0].nombre} campeón 🏆`;
+                actualizarVistas();
+                if (tarjetaPerdedor) {
+                    tarjetaPerdedor.classList.remove('blink');
+                }
+                return;
+            }
+
+            // Esperar 4 segundos, quitar el parpadeo y resetear el turno
+            setTimeout(() => {
+                if (tarjetaPerdedor) {
+                    tarjetaPerdedor.classList.remove('blink');
+                }
+                resetearTurno();
+            }, 4000);
+        }
+
+        // Inicializar
+        actualizarVistas();
+    </script>
+</body>
+</html>
