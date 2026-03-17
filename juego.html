@@ -185,6 +185,17 @@
             margin-top: 20px;
             color: #7f8c8d;
         }
+        /* Estilo para el temporizador */
+        .timer {
+            font-size: 2rem;
+            font-weight: bold;
+            text-align: center;
+            margin: 10px 0;
+            color: #e67e22;
+        }
+        .timer.warning {
+            color: #c0392b;
+        }
     </style>
 </head>
 <body>
@@ -218,6 +229,7 @@
             </div>
 
             <div id="questionArea" class="pregunta-area hidden">
+                <div id="timerDisplay" class="timer">⏳ 30</div>
                 <h3 id="preguntaTexto"></h3>
                 <div id="optionsContainer" class="options-container"></div>
             </div>
@@ -396,6 +408,12 @@
         let cuestionado = null;
         let preguntaActual = null;
 
+        // Variables para el temporizador
+        const TIEMPO_LIMITE = 30; // segundos
+        let tiempoRestante = TIEMPO_LIMITE;
+        let timerInterval = null;
+        let timerElement = document.getElementById('timerDisplay');
+
         // Elementos del DOM
         const configScreen = document.getElementById('configScreen');
         const gameScreen = document.getElementById('gameScreen');
@@ -455,6 +473,7 @@
 
         // ---------- REINICIAR ----------
         btnReiniciar.addEventListener('click', () => {
+            detenerTimer();
             configScreen.classList.remove('hidden');
             gameScreen.classList.add('hidden');
             resetearTurno();
@@ -487,6 +506,7 @@
         }
 
         function resetearTurno() {
+            detenerTimer();
             retador = null;
             cuestionado = null;
             preguntaActual = null;
@@ -505,6 +525,107 @@
             setTimeout(() => {
                 messageBox.classList.add('hidden');
             }, 5000);
+        }
+
+        // ---------- FUNCIONES DEL TEMPORIZADOR ----------
+        function iniciarTimer() {
+            detenerTimer(); // Por si acaso
+            tiempoRestante = TIEMPO_LIMITE;
+            actualizarTimerDisplay();
+            timerInterval = setInterval(() => {
+                tiempoRestante--;
+                actualizarTimerDisplay();
+                if (tiempoRestante <= 0) {
+                    tiempoAgotado();
+                }
+            }, 1000);
+        }
+
+        function detenerTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        function actualizarTimerDisplay() {
+            if (timerElement) {
+                timerElement.innerText = `⏳ ${tiempoRestante}`;
+                // Cambiar color si quedan pocos segundos
+                if (tiempoRestante <= 5) {
+                    timerElement.classList.add('warning');
+                } else {
+                    timerElement.classList.remove('warning');
+                }
+            }
+        }
+
+        function tiempoAgotado() {
+            detenerTimer();
+            // Deshabilitar botones
+            const botones = document.querySelectorAll('.option-btn');
+            botones.forEach(btn => btn.disabled = true);
+
+            // Mostrar respuesta correcta
+            const correcta = preguntaActual.respuesta;
+            botones.forEach(btn => {
+                const opcion = btn.dataset.opcion;
+                if (opcion === correcta) {
+                    btn.classList.add('correct');
+                }
+            });
+
+            // El cuestionado pierde una vida por no responder
+            cuestionado.vidas -= 1;
+            let equipoPerdedor = cuestionado;
+
+            // Parpadear tarjeta del perdedor
+            const tarjetas = document.querySelectorAll('.team-card');
+            let tarjetaPerdedor = null;
+            tarjetas.forEach(tarjeta => {
+                const nombre = tarjeta.querySelector('.team-name').innerText;
+                if (nombre === equipoPerdedor.nombre) {
+                    tarjetaPerdedor = tarjeta;
+                }
+            });
+            if (tarjetaPerdedor) {
+                tarjetaPerdedor.classList.add('blink');
+            }
+
+            // Mensaje
+            let mensaje = `⏰ ¡Tiempo agotado! La respuesta correcta era: ${correcta}\n\n${cuestionado.nombre} pierde una vida.`;
+            mostrarMensaje(mensaje, 'error');
+
+            // Verificar eliminaciones
+            const eliminados = equipos.filter(eq => eq.vidas === 0);
+            if (eliminados.length > 0) {
+                eliminados.forEach(eq => {
+                    mostrarMensaje(`💀 ${eq.nombre} ha sido eliminado.`, 'error');
+                });
+            }
+
+            // Comprobar si el juego terminó
+            const vivos = equipos.filter(eq => eq.vidas > 0);
+            if (vivos.length === 1) {
+                mostrarMensaje(`🏆 ¡${vivos[0].nombre} es el GANADOR! 🏆`, 'info');
+                btnGirar.disabled = true;
+                chooseArea.classList.add('hidden');
+                questionArea.classList.add('hidden');
+                turnIndicator.innerText = `🏆 ${vivos[0].nombre} campeón 🏆`;
+                actualizarVistas();
+                if (tarjetaPerdedor) {
+                    tarjetaPerdedor.classList.remove('blink');
+                }
+                return;
+            }
+
+            // Resetear después de 4 segundos
+            setTimeout(() => {
+                if (tarjetaPerdedor) {
+                    tarjetaPerdedor.classList.remove('blink');
+                }
+                resetearTurno();
+            }, 4000);
         }
 
         // ---------- GIRAR RULETA ----------
@@ -561,10 +682,16 @@
             });
             questionArea.classList.remove('hidden');
             turnIndicator.innerText = `${retador.nombre} reta a ${cuestionado.nombre} a responder.`;
+
+            // Iniciar el temporizador
+            iniciarTimer();
         }
 
         // ---------- MANEJAR RESPUESTA ----------
         function manejarRespuesta(opcionElegida, botonClickeado) {
+            // Detener el temporizador porque ya respondieron
+            detenerTimer();
+
             const botones = document.querySelectorAll('.option-btn');
             botones.forEach(btn => btn.disabled = true);
 
